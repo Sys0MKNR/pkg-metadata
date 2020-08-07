@@ -11,11 +11,6 @@ const unzipper = require('unzipper')
 const pkgfetch = require('pkg-fetch')
 const { exec: pkgExec } = require('pkg')
 
-const pkginfo = require('pkginfo')(module, 'version', 'name', 'description', 'author')
-
-// take info from package.json
-// pkg options
-
 class PKGMetadata {
   constructor (opts) {
     this.nodeVersion = opts.nodeVersion || process.version.slice(1)
@@ -26,16 +21,19 @@ class PKGMetadata {
     this.pkgCachePath = path.join(os.homedir(), '.pkg-cache')
     this.distPath = path.resolve(opts.distPath) || path.join(__dirname, '.dist')
 
-    this.version = opts.version
-    this.name = opts.name
-    this.description = opts.description
-    this.author = opts.author
+    this.autoGen = opts.autoGen
 
-    this.icon = path.resolve(opts.icon)
+    this.version = opts.version || null
+    this.name = opts.name || null
+    this.exeName = this.name ? this.name + '.exe' : null
+    this.description = opts.description || null
+    this.legal = opts.legal || null
+
+    this.icon = opts.icon ? path.resolve(opts.icon) : null
 
     this.rcData = opts.rcData || {}
 
-    this.pkg = opts.pkg || true
+    this.pkg = !!opts.pkg || true
     this.pkgOptions = opts.pkgOptions
 
     this.binPath = path.join(this.distPath, this.name)
@@ -50,13 +48,13 @@ class PKGMetadata {
     this.rhPathZip = this.rhPath + '.zip'
     this.rhPathExe = path.join(this.rhPath, 'ResourceHacker.exe')
 
-    this.rcName = 'bin.rc'
-    this.resName = 'bin.res'
-    this.rcPath = path.join(this.tmpPath, this.rcName)
-    this.resFilePath = path.join(this.tmpPath, this.resName)
+    this.rcFilePath = opts.rc || path.join(this.tmpPath, 'bin.rc')
+    this.resFilePath = path.join(this.tmpPath, 'bin.res')
   }
 
   async run () {
+    await fs.remove(this.tmpPath)
+    await fs.remove(this.distPath)
     await ensureDir([
       this.cachePath,
       this.tmpPath,
@@ -99,34 +97,48 @@ class PKGMetadata {
     }
   }
 
-  async generateRES () {
-    let rcSample = await fs.readFile(path.join(this.resPath, 'q_sample.rc'))
-    rcSample = rcSample.toString()
-
-    let rc = rcSample.replace('#fileVersion#', toCommaVersion(this.rcData.FileVersion))
-    rc = rc.replace('#productVersion#', toCommaVersion(this.rcData.ProductVersion))
-
-    let block = ''
-
-    console.log(this.rcData)
-
-    for (const [key, value] of Object.entries(this.rcData)) {
-      block += `\t\tVALUE "${key}", "${value}"\n`
+  generateRCData () {
+    const customData = {
+      FileDescription: this.descriptios,
+      FileVersion: this.version,
+      InternalName: this.exeName,
+      LegalCopyright: this.legal,
+      OriginalFilename: this.exeName,
+      ProductName: this.name,
+      ProductVersion: this.version
     }
 
-    rc = rc.replace('#fileInfoBlock#', block)
+    return { ...removeNullProperties(customData), ...removeNullProperties(this.rcData) }
+  }
 
-    await fs.writeFile(this.rcPath, rc)
+  async generateRES () {
+    if (!fs.existsSync(this.rcFilePath)) {
+      const finalRCDAta = this.generateRCData()
 
-    await execP(`${this.rhPathExe} -open ${this.rcPath} -action compile -save ${this.resFilePath}`)
+      console.log(finalRCDAta)
+
+      let rcSample = await fs.readFile(path.join(this.resPath, 'q_sample.rc'))
+      rcSample = rcSample.toString()
+
+      let rc = rcSample.replace('#fileVersion#', toCommaVersion(finalRCDAta.FileVersion))
+      rc = rc.replace('#productVersion#', toCommaVersion(finalRCDAta.ProductVersion))
+
+      let block = ''
+
+      for (const [key, value] of Object.entries(finalRCDAta)) {
+        block += `\t\tVALUE "${key}", "${value}"\n`
+      }
+
+      rc = rc.replace('#fileInfoBlock#', block)
+
+      await fs.writeFile(this.rcFilePath, rc)
+    }
+
+    await execP(`${this.rhPathExe} -open ${this.rcFilePath} -action compile -save ${this.resFilePath}`)
   }
 
   async editMetaData () {
     // copy to temp
-
-    console.log('lul')
-
-    console.log(this.baseBinPath)
 
     if (!fs.existsSync(this.baseBinPath)) { throw new Error() }
     await fs.copyFile(this.baseBinPath, this.baseBinPathTMP)
@@ -174,6 +186,11 @@ async function waitOnStreamEnd (stream) {
 async function ensureDir (dirs) {
   const tasks = dirs.map(dir => fs.ensureDir(dir))
   await Promise.all(tasks)
+}
+
+function removeNullProperties (obj) {
+  Object.keys(obj).filter(k => (obj[k] == null)).forEach(k => delete obj[k])
+  return obj
 }
 
 module.exports = PKGMetadata

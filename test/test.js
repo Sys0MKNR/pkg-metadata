@@ -4,24 +4,22 @@ const PKGMetadata = require('../index.js')
 const metadata = new PKGMetadata({
 
   distPath: '.dist',
-  version: '1.1.1',
-  name: 'test.exe',
-  description: 'this is a test desc',
-  author: 'MSz',
+  version: '1.1.10',
+  name: 'testCustom',
+  // description: 'this is a custom test desc',
+  // legal: 'copyright msz',
   nodeVersion: '12.13.1',
-  autoGen: true,
-  icon: path.join(__dirname, '../res/icon.ico'),
-  rc: '',
-  res: '',
-  rcData: {
-    FileDescription: 'this is a test desc',
-    FileVersion: '1.1.1.2',
-    // InternalName: 'test.exe',
-    // LegalCopyright: 'me',
-    // OriginalFilename: 'test.exe',
-    // ProductName: 'test',
-    ProductVersion: '1.1.1'
-  },
+  // icon: path.join(__dirname, '../res/icon.ico'),
+  rcFile: '',
+  // rcData: {
+  //   FileDescription: 'this is a test desc',
+  //   FileVersion: '1.1.1.2',
+  //   InternalName: 'test.exe',
+  //   LegalCopyright: 'me',
+  //   OriginalFilename: 'test.exe',
+  //   ProductName: 'test',
+  //   ProductVersion: '1.1.1'
+  // },
   pkg: true,
   pkgOptions: [
     path.join(__dirname, 'pkgTest.js'),
