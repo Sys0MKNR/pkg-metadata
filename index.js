@@ -19,7 +19,6 @@ class PKGMetadata {
     this.cachePath = path.join(__dirname, '.cache')
     this.tmpPath = path.join(__dirname, '.tmp')
     this.pkgCachePath = path.join(os.homedir(), '.pkg-cache')
-    this.distPath = path.resolve(opts.distPath) || path.join(__dirname, '.dist')
 
     this.autoGen = opts.autoGen
 
@@ -35,8 +34,6 @@ class PKGMetadata {
 
     this.pkg = !!opts.pkg || true
     this.pkgOptions = opts.pkgOptions
-
-    this.binPath = path.join(this.distPath, this.name)
 
     this.baseBinName = `fetched-v${this.nodeVersion}-win-x64`
     this.baseBinNameTMP = this.baseBinName + '.backup'
@@ -54,12 +51,10 @@ class PKGMetadata {
 
   async run () {
     await fs.remove(this.tmpPath)
-    await fs.remove(this.distPath)
     await ensureDir([
       this.cachePath,
       this.tmpPath,
-      this.rhPath,
-      this.distPath
+      this.rhPath
     ])
 
     await this.fetchResourceHacker()
@@ -144,6 +139,7 @@ class PKGMetadata {
     await fs.copyFile(this.baseBinPath, this.baseBinPathTMP)
 
     // edit metadata
+
     await execP(`${this.rhPathExe} -open ${this.baseBinPath} -resource ${this.resFilePath} -action addoverwrite  -save ${this.baseBinPath}`)
 
     if (this.icon) {

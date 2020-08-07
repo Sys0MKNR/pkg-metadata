@@ -2,14 +2,12 @@ const path = require('path')
 const PKGMetadata = require('../index.js')
 
 const metadata = new PKGMetadata({
-
-  distPath: '.dist',
-  version: '1.1.10',
+  version: '1.1.11',
   name: 'testCustom',
   // description: 'this is a custom test desc',
   // legal: 'copyright msz',
   nodeVersion: '12.13.1',
-  // icon: path.join(__dirname, '../res/icon.ico'),
+  icon: path.join(__dirname, '../res/icon.ico'),
   rcFile: '',
   // rcData: {
   //   FileDescription: 'this is a test desc',
@@ -20,6 +18,7 @@ const metadata = new PKGMetadata({
   //   ProductName: 'test',
   //   ProductVersion: '1.1.1'
   // },
+
   pkg: true,
   pkgOptions: [
     path.join(__dirname, 'pkgTest.js'),
