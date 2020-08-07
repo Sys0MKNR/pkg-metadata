@@ -9,15 +9,15 @@ const metadata = new PKGMetadata({
   nodeVersion: '12.13.1',
   icon: path.join(__dirname, '../res/icon.ico'),
   rcFile: '',
-  // rcData: {
-  //   FileDescription: 'this is a test desc',
-  //   FileVersion: '1.1.1.2',
-  //   InternalName: 'test.exe',
-  //   LegalCopyright: 'me',
-  //   OriginalFilename: 'test.exe',
-  //   ProductName: 'test',
-  //   ProductVersion: '1.1.1'
-  // },
+  rcData: {
+    FileDescription: 'this is a test desc',
+    FileVersion: '1.1.1.2',
+    InternalName: 'test.exe',
+    LegalCopyright: 'me',
+    OriginalFilename: 'test.exe',
+    ProductName: 'test',
+    ProductVersion: '1.1.1'
+  },
 
   pkg: true,
   pkgOptions: [

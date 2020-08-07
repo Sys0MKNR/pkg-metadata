@@ -1,9 +1,9 @@
 const path = require('path')
 const os = require('os')
 const util = require('util')
-const { exec } = require('child_process')
+const { execFile } = require('child_process')
 
-const execP = util.promisify(exec)
+const execFileP = util.promisify(execFile)
 
 const fetch = require('node-fetch')
 const fs = require('fs-extra')
@@ -50,6 +50,7 @@ class PKGMetadata {
   }
 
   async run () {
+    console.log('start...')
     await fs.remove(this.tmpPath)
     await ensureDir([
       this.cachePath,
@@ -70,6 +71,7 @@ class PKGMetadata {
   }
 
   async fetchResourceHacker () {
+    console.log('fetch ResourceHacker')
     if (!fs.existsSync(this.rhPathZip)) {
       const res = await fetch(this.rhURL)
       const zipOut = fs.createWriteStream(this.rhPathZip)
@@ -86,7 +88,7 @@ class PKGMetadata {
   }
 
   async fetchBinaries () {
-    console.log(this.baseBinPath)
+    console.log('fetch base binaries')
     if (!fs.existsSync(this.baseBinPath)) {
       await pkgfetch.need({ nodeRange: `node${this.nodeVersion}`, platform: 'win', arch: 'x64' })
     }
@@ -107,6 +109,7 @@ class PKGMetadata {
   }
 
   async generateRES () {
+    console.log('generate Res')
     if (!fs.existsSync(this.rcFilePath)) {
       const finalRCDAta = this.generateRCData()
 
@@ -129,10 +132,16 @@ class PKGMetadata {
       await fs.writeFile(this.rcFilePath, rc)
     }
 
-    await execP(`${this.rhPathExe} -open ${this.rcFilePath} -action compile -save ${this.resFilePath}`)
+    await this.execRH({
+      open: this.rcFilePath,
+      save: this.resFilePath,
+      action: 'compile'
+    })
+    // await execP(`${this.rhPathExe} -open ${} -action compile -save ${this.resFilePath}`)
   }
 
   async editMetaData () {
+    console.log('edit metadata')
     // copy to temp
 
     if (!fs.existsSync(this.baseBinPath)) { throw new Error() }
@@ -140,11 +149,47 @@ class PKGMetadata {
 
     // edit metadata
 
-    await execP(`${this.rhPathExe} -open ${this.baseBinPath} -resource ${this.resFilePath} -action addoverwrite  -save ${this.baseBinPath}`)
+    await this.execRH({
+      open: this.baseBinPath,
+      save: this.baseBinPath,
+      action: 'addoverwrite',
+      resource: this.resFilePath
+    })
+
+    // await execP(`${this.rhPathExe} -open ${this.baseBinPath} -resource ${this.resFilePath} -action addoverwrite  -save ${this.baseBinPath}`)
 
     if (this.icon) {
-      await execP(`${this.rhPathExe} -open ${this.baseBinPath} -resource ${this.icon} -action addoverwrite -mask ICONGROUP,MAINICON, -save ${this.baseBinPath}`)
+      console.log('change icon')
+      await this.execRH({
+        open: this.baseBinPath,
+        save: this.baseBinPath,
+        action: 'addoverwrite',
+        resource: this.icon,
+        mask: 'ICONGROUP,MAINICON,'
+      })
+    //   await execP(`${this.rhPathExe} -open ${this.baseBinPath} -resource ${this.icon} -action addoverwrite -mask ICONGROUP,MAINICON, -save ${this.baseBinPath}`)
     }
+  }
+
+  async execRH (opts) {
+    const possibleOpts = [
+      'open',
+      'action',
+      'save',
+      'resource',
+      'mask'
+    ]
+
+    const args = []
+
+    possibleOpts.forEach(o => {
+      if (opts[o]) {
+        args.push('-' + o)
+        args.push(opts[o])
+      }
+    })
+
+    return execFileP(this.rhPathExe, args)
   }
 
   async runPKG () {
@@ -165,8 +210,6 @@ function toCommaVersion (version) {
   } else {
     version = version.split('-')[0].split('.').join(',') + ',0'
   }
-
-  console.log(version)
 
   return version
 }
