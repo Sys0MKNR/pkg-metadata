@@ -11,6 +11,7 @@ const unzipper = require('unzipper')
 const pkgfetch = require('pkg-fetch')
 const { exec: pkgExec } = require('pkg')
 
+/** Class representing a PKGMetadata instance. */
 class PKGMetadata {
   constructor (opts) {
     this.nodeVersion = opts.nodeVersion || process.version.slice(1)
@@ -43,9 +44,23 @@ class PKGMetadata {
     this.rhURL = 'http://www.angusj.com/resourcehacker/resource_hacker.zip'
     this.rhPath = path.join(this.cachePath, 'rh')
     this.rhPathZip = this.rhPath + '.zip'
-    this.rhPathExe = path.join(this.rhPath, 'ResourceHacker.exe')
 
-    this.rcFilePath = opts.rc || path.join(this.tmpPath, 'bin.rc')
+    if (opts.rhPath) {
+      this.rhCustom = true
+      this.rhPathExe = path.resolve(opts.rhPath)
+    } else {
+      this.rhCustom = false
+      this.rhPathExe = path.join(this.rhPath, 'ResourceHacker.exe')
+    }
+
+    if (opts.rcFilePath) {
+      this.rcCustom = true
+      this.rcFilePath = opts.rcFilePath
+    } else {
+      this.rcCustom = false
+      this.rcFilePath = path.join(this.tmpPath, 'bin.rc')
+    }
+
     this.resFilePath = path.join(this.tmpPath, 'bin.res')
   }
 
@@ -72,6 +87,9 @@ class PKGMetadata {
 
   async fetchResourceHacker () {
     console.log('fetch ResourceHacker')
+
+    if (this.rhCustom) { return }
+
     if (!fs.existsSync(this.rhPathZip)) {
       const res = await fetch(this.rhURL)
       const zipOut = fs.createWriteStream(this.rhPathZip)
@@ -110,7 +128,7 @@ class PKGMetadata {
 
   async generateRES () {
     console.log('generate Res')
-    if (!fs.existsSync(this.rcFilePath)) {
+    if (!this.rcCustom) {
       const finalRCDAta = this.generateRCData()
 
       console.log(finalRCDAta)
@@ -156,8 +174,6 @@ class PKGMetadata {
       resource: this.resFilePath
     })
 
-    // await execP(`${this.rhPathExe} -open ${this.baseBinPath} -resource ${this.resFilePath} -action addoverwrite  -save ${this.baseBinPath}`)
-
     if (this.icon) {
       console.log('change icon')
       await this.execRH({
@@ -167,7 +183,6 @@ class PKGMetadata {
         resource: this.icon,
         mask: 'ICONGROUP,MAINICON,'
       })
-    //   await execP(`${this.rhPathExe} -open ${this.baseBinPath} -resource ${this.icon} -action addoverwrite -mask ICONGROUP,MAINICON, -save ${this.baseBinPath}`)
     }
   }
 
@@ -193,6 +208,7 @@ class PKGMetadata {
   }
 
   async runPKG () {
+    console.log('run pkg')
     await pkgExec(this.pkgOptions)
   }
 
@@ -213,10 +229,6 @@ function toCommaVersion (version) {
 
   return version
 }
-
-// function padVersion (version) {
-//   return version.split('-')[0].split('.').join(',') + ',0'
-// }
 
 async function waitOnStreamEnd (stream) {
   return new Promise(resolve => stream.on('finish', resolve))

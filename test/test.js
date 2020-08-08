@@ -8,7 +8,7 @@ const metadata = new PKGMetadata({
   // legal: 'copyright msz',
   nodeVersion: '12.13.1',
   icon: path.join(__dirname, '../res/icon.ico'),
-  rcFile: '',
+  // rcFilePath: '',
   rcData: {
     FileDescription: 'this is a test desc',
     FileVersion: '1.1.1.2',
@@ -20,6 +20,8 @@ const metadata = new PKGMetadata({
   },
 
   pkg: true,
+  pkgOutPath: '',
+  pkgInPath: '',
   pkgOptions: [
     path.join(__dirname, 'pkgTest.js'),
     '--target',
