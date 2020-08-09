@@ -14,6 +14,9 @@ const { exec: pkgExec } = require('pkg')
 /** Class representing a PKGMetadata instance. */
 class PKGMetadata {
   constructor (opts) {
+    this.target = opts.target || {}
+    this.targetString = ''
+
     this.nodeVersion = opts.nodeVersion || process.version.slice(1)
 
     this.resPath = path.join(__dirname, 'res')
@@ -21,20 +24,13 @@ class PKGMetadata {
     this.tmpPath = path.join(__dirname, '.tmp')
     this.pkgCachePath = path.join(os.homedir(), '.pkg-cache')
 
-    this.autoGen = opts.autoGen
-
-    this.version = opts.version || null
-    this.name = opts.name || null
-    this.exeName = this.name ? this.name + '.exe' : null
-    this.description = opts.description || null
-    this.legal = opts.legal || null
+    this.metaData = opts.metaData || {}
 
     this.icon = opts.icon ? path.resolve(opts.icon) : null
 
     this.rcData = opts.rcData || {}
 
-    this.pkg = !!opts.pkg || true
-    this.pkgOptions = opts.pkgOptions
+    this.pkg = opts.pkg
 
     this.baseBinName = `fetched-v${this.nodeVersion}-win-x64`
     this.baseBinNameTMP = this.baseBinName + '.backup'
@@ -82,7 +78,6 @@ class PKGMetadata {
       await this.runPKG()
       await this.cleanup()
     }
-    // await this.cleanup()
   }
 
   async fetchResourceHacker () {
@@ -113,14 +108,16 @@ class PKGMetadata {
   }
 
   generateRCData () {
+    const exeName = this.metaData.name + '.exe'
+
     const customData = {
-      FileDescription: this.descriptios,
-      FileVersion: this.version,
-      InternalName: this.exeName,
-      LegalCopyright: this.legal,
-      OriginalFilename: this.exeName,
-      ProductName: this.name,
-      ProductVersion: this.version
+      FileDescription: this.metaData.descriptios,
+      FileVersion: this.metaData.version,
+      InternalName: exeName,
+      LegalCopyright: this.metaData.legal,
+      OriginalFilename: exeName,
+      ProductName: this.metaData.name,
+      ProductVersion: this.metaData.version
     }
 
     return { ...removeNullProperties(customData), ...removeNullProperties(this.rcData) }
@@ -155,7 +152,6 @@ class PKGMetadata {
       save: this.resFilePath,
       action: 'compile'
     })
-    // await execP(`${this.rhPathExe} -open ${} -action compile -save ${this.resFilePath}`)
   }
 
   async editMetaData () {
@@ -176,6 +172,7 @@ class PKGMetadata {
 
     if (this.icon) {
       console.log('change icon')
+
       await this.execRH({
         open: this.baseBinPath,
         save: this.baseBinPath,
@@ -209,7 +206,20 @@ class PKGMetadata {
 
   async runPKG () {
     console.log('run pkg')
-    await pkgExec(this.pkgOptions)
+
+    let args = this.pkg.args
+
+    if (!args) {
+      args = [
+        this.pkg.src,
+        '--target',
+        `node${this.nodeVersion}-win`,
+        '--output',
+        this.pkg.out
+      ]
+    }
+
+    await pkgExec(args)
   }
 
   async cleanup () {
