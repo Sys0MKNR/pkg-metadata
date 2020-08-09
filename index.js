@@ -254,4 +254,10 @@ function removeNullProperties (obj) {
   return obj
 }
 
-module.exports = PKGMetadata
+async function exec (opts) {
+  const metadata = new PKGMetadata(opts)
+  await metadata.run()
+  return metadata
+}
+
+module.exports = { exec, PKGMetadata }
