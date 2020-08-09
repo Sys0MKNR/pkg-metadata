@@ -1,5 +1,87 @@
 # usage 
 
+
+## Basic
+
+```js
+const { PKGMetadata } = require('pkg-metadata')
+
+const metadata = new PKGMetadata({
+  nodeVersion: '12.13.1',
+  metaData: {
+    version: '1.1.1',
+    name: 'bin',
+    description: 'this is a custom test desc',
+    legal: 'copyright @me',
+  },
+  icon: '<path-to-icon>',
+  pkg: {
+    src: '<path-to-entry>',
+    out: '<path-to-out-exe>'
+  }
+})
+```
+
+
+## function
+
+```js
+const { exec } = require('pkg-metadata')
+
+const metadata = exec({
+    // options
+})
+```
+
+
+## no pkg with manual cleanup of base binaries
+
+
+```js
+const { PKGMetadata } = require('pkg-metadata')
+
+const metadata = new PKGMetadata({
+    // options
+    pkg: null
+})
+
+// run pkg manually
+
+metaData.cleanup()
+```
+
+
+## with rcData and pkg args 
+
+```js
+const { PKGMetadata } = require('pkg-metadata')
+
+const metadata = new PKGMetadata({
+  nodeVersion: '12.13.1',
+  icon: '<path-to-icon>',
+  rcData: {
+    FileDescription: 'this is a test desc',
+    FileVersion: '1.1.1.2',
+    InternalName: 'bin.exe',
+    LegalCopyright: 'copyright @me',
+    OriginalFilename: 'bin.exe',
+    ProductName: 'bin',
+    ProductVersion: '1.1.1'
+  },
+  pkg: {
+    args: [
+      '<path-to-entry>',
+      '--target',
+      `node${'12.13.1'}-win`,
+      '--output',
+      '<path-to-out-exe>'
+    ]
+  }
+})
+```
+
+
+
 # options
 
 
