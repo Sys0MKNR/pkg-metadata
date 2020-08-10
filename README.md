@@ -152,8 +152,15 @@ Custom pkg args.
 > If pkg is not set then pkg will not be executed. It is also necessary to call PKGMetadata.cleanup() or cleanup() manually because the edited base binary will still be in the pkg cache. 
 
 
+## rhPath
+
+The path to the ResourceHacker executable. 
+
+> If set, ResourceHacker won't be downloaded.
+
 
 # Rand info
 
 * wip
 * icons are pretty scuffed. The old ones are still in the exe and only the mainicon is set to the new one. 
+* nodeVersion and the pkg target version have to be an exact match. Otherwise pkg may use a wrong node base binary. 
