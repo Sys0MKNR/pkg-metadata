@@ -1,9 +1,12 @@
 const path = require('path')
 const os = require('os')
 const util = require('util')
+const crypto = require('crypto')
+
 const { execFile } = require('child_process')
 
 const execFileP = util.promisify(execFile)
+const randomBytes = util.promisify(crypto.randomBytes)
 
 const fetch = require('node-fetch')
 const fs = require('fs-extra')
@@ -21,7 +24,9 @@ class PKGMetadata {
 
     this.resPath = path.join(__dirname, 'res')
     this.cachePath = path.join(__dirname, '.cache')
-    this.tmpPath = path.join(__dirname, '.tmp')
+    this.baseTMPPath = path.join(__dirname, '.tmp')
+
+    // this.tmpPath = path.join(__dirname, '.tmp')
     this.pkgCachePath = path.join(os.homedir(), '.pkg-cache')
 
     this.metaData = opts.metaData || {}
@@ -35,7 +40,6 @@ class PKGMetadata {
     this.baseBinName = `fetched-v${this.nodeVersion}-win-x64`
     this.baseBinNameTMP = this.baseBinName + '.backup'
     this.baseBinPath = path.join(this.pkgCachePath, 'v2.6', this.baseBinName)
-    this.baseBinPathTMP = path.join(this.tmpPath, this.baseBinNameTMP)
 
     this.rhURL = 'http://www.angusj.com/resourcehacker/resource_hacker.zip'
     this.rhPath = path.join(this.cachePath, 'rh')
@@ -54,15 +58,14 @@ class PKGMetadata {
       this.rcFilePath = opts.rcFilePath
     } else {
       this.rcCustom = false
-      this.rcFilePath = path.join(this.tmpPath, 'bin.rc')
     }
-
-    this.resFilePath = path.join(this.tmpPath, 'bin.res')
   }
 
   async run () {
     console.log('start...')
-    await fs.remove(this.tmpPath)
+
+    await this.genTMPPaths()
+
     await ensureDir([
       this.cachePath,
       this.tmpPath,
@@ -225,6 +228,32 @@ class PKGMetadata {
   async cleanup () {
     console.log('cleanup')
     await fs.copyFile(this.baseBinPathTMP, this.baseBinPath)
+    await fs.remove(this.tmpPath)
+  }
+
+  async genTMPPaths () {
+    if (this.tmpPath) { return }
+    await fs.ensureDir(this.baseTMPPath)
+
+    let tmpPathName
+    let tmpPath
+    while (true) {
+      tmpPathName = await randString(8, 'hex')
+      tmpPath = path.join(this.baseTMPPath, tmpPathName)
+
+      if (fs.existsSync(tmpPath)) {
+        continue
+      }
+      break
+    }
+
+    this.tmpPath = tmpPath
+    this.baseBinPathTMP = path.join(this.tmpPath, this.baseBinNameTMP)
+
+    if (!this.rcCustom) {
+      this.rcFilePath = path.join(this.tmpPath, 'bin.rc')
+    }
+    this.resFilePath = path.join(this.tmpPath, 'bin.res')
   }
 }
 
@@ -260,4 +289,9 @@ async function exec (opts) {
   return metadata
 }
 
-module.exports = { exec, PKGMetadata }
+async function randString (length, encoding) {
+  const bytes = await randomBytes(length)
+  return encoding ? bytes.toString(encoding) : bytes.toString()
+}
+
+module.exports = { PKGMetadata, exec }

@@ -1,46 +1,32 @@
 const path = require('path')
+const test = require('ava')
+const fs = require('fs-extra')
+
 const { PKGMetadata } = require('../index.js')
 
-const metadata = new PKGMetadata({
+const TMP_PATH = path.join(__dirname, '.tmp')
 
-  nodeVersion: '12.13.1',
-  metaData: {
-    version: '1.1.11',
-    name: 'testCustom',
-    description: 'this is a custom test desc',
-    legal: 'copyright msz'
-  },
-  icon: path.join(__dirname, '../res/icon.ico'),
-  // rcFilePath: path.join(__dirname, 'bin.rc'),
-  // rhPath: path.join(__dirname, '../', '.cache', 't', 'ResourceHacker.exe'),
-  rcData: {
-    // FileDescription: 'this is a test desc',
-    // FileVersion: '1.1.1.2',
-    // InternalName: 'test.exe',
-    // LegalCopyright: 'me',
-    // OriginalFilename: 'test.exe',
-    // ProductName: 'test',
-    // ProductVersion: '1.1.1'
-  },
-  pkg: {
-    src: path.join(__dirname, 'pkgTest.js'),
-    out: path.join(__dirname, '../', '.dist/test.exe')
-    // args: [
-    //   path.join(__dirname, 'pkgTest.js'),
-    //   '--target',
-    //   `node${'12.13.1'}-win`,
-    //   '--output',
-    //   path.join(__dirname, '../', '.dist/test.exe')
-    // ]
-  }
+test.before(async t => {
+  await fs.ensureDir(TMP_PATH)
 })
 
-async function main () {
-  try {
-    await metadata.run()
-  } catch (error) {
-    console.log(error)
-  }
-}
+test('basic', t => {
+  const opts = {
+    nodeVersion: '12.13.1',
+    metaData: {
+      version: '1.1.11',
+      name: 'testCustom',
+      description: 'this is a custom test desc',
+      legal: 'copyright msz'
+    },
+    icon: path.join(__dirname, '../res/icon.ico'),
+    pkg: {
+      src: path.join(__dirname, 'pkgTest.js'),
+      out: path.join(TMP_PATH, 'basic.exe')
 
-main()
+    }
+  }
+
+  const l = new PKGMetadata(opts)
+  t.pass()
+})
