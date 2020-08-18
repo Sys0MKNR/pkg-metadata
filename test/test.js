@@ -10,7 +10,9 @@ test.before(async t => {
   await fs.ensureDir(TMP_PATH)
 })
 
-test('basic', t => {
+test('basic', async t => {
+  t.timeout(30000)
+
   const opts = {
     nodeVersion: '12.13.1',
     metaData: {
@@ -27,6 +29,8 @@ test('basic', t => {
     }
   }
 
-  const l = new PKGMetadata(opts)
+  const p = new PKGMetadata(opts)
+  await p.run()
+
   t.pass()
 })

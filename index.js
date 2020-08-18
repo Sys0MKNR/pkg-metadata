@@ -53,12 +53,15 @@ class PKGMetadata {
       this.rhPathExe = path.join(this.rhPath, 'ResourceHacker.exe')
     }
 
-    if (opts.rcFilePath) {
-      this.rcCustom = true
-      this.rcFilePath = opts.rcFilePath
-    } else {
-      this.rcCustom = false
-    }
+    this.rcFilePath = opts.rcFilePath
+    this.resFilePath = opts.resFilePath
+
+    // if (opts.rcFilePath) {
+    //   this.rcCustom = true
+    //   this.rcFilePath = opts.rcFilePath
+    // } else {
+    //   this.rcCustom = false
+    // }
   }
 
   async run () {
@@ -127,8 +130,13 @@ class PKGMetadata {
   }
 
   async generateRES () {
+    if (this.resFilePath) { return }
+
+    this.resFilePath = path.join(this.tmpPath, 'bin.res')
+
     console.log('generate Res')
-    if (!this.rcCustom) {
+    if (!this.rcFilePath) {
+      this.rcFilePath = path.join(this.tmpPath, 'bin.rc')
       const finalRCDAta = this.generateRCData()
 
       console.log(finalRCDAta)
@@ -249,11 +257,6 @@ class PKGMetadata {
 
     this.tmpPath = tmpPath
     this.baseBinPathTMP = path.join(this.tmpPath, this.baseBinNameTMP)
-
-    if (!this.rcCustom) {
-      this.rcFilePath = path.join(this.tmpPath, 'bin.rc')
-    }
-    this.resFilePath = path.join(this.tmpPath, 'bin.res')
   }
 }
 
