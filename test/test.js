@@ -11,7 +11,7 @@ test.before(async t => {
 })
 
 test('basic', async t => {
-  t.timeout(30000)
+  // t.timeout('5m')
 
   const opts = {
     nodeVersion: '12.13.1',
@@ -25,7 +25,6 @@ test('basic', async t => {
     pkg: {
       src: path.join(__dirname, 'pkgTest.js'),
       out: path.join(TMP_PATH, 'basic.exe')
-
     }
   }
 

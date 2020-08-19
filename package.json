@@ -29,6 +29,7 @@
     "files": [
       "./test/test.js"
     ],
-    "verbose": true
+    "verbose": true,
+    "timeout": "2m"
   }
 }
