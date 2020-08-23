@@ -14,6 +14,7 @@ test('basic', async t => {
   // t.timeout('5m')
 
   const opts = {
+    keepTMP: true,
     nodeVersion: '12.13.1',
     metaData: {
       version: '1.1.11',

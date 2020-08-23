@@ -14,25 +14,29 @@ const unzipper = require('unzipper')
 const pkgfetch = require('pkg-fetch')
 const { exec: pkgExec } = require('pkg')
 
+var JsDiff = require('diff')
+
+const TMP_PATH = path.join(__dirname, '.tmp')
+const CACHE_PATH = path.join(__dirname, '.cache')
+const RES_PATH = path.join(__dirname, 'res')
+
+const PKG_CACHE_PATH = path.join(os.homedir(), '.pkg-cache')
+
+const RH_URL = 'http://www.angusj.com/resourcehacker/resource_hacker.zip'
+
 /** Class representing a PKGMetadata instance. */
 class PKGMetadata {
   constructor (opts) {
-    this.target = opts.target || {}
-    this.targetString = ''
-
+    this.keepTMP = opts.keepTMP
     this.nodeVersion = opts.nodeVersion || process.version.slice(1)
 
-    this.resPath = path.join(__dirname, 'res')
-    this.cachePath = path.join(__dirname, '.cache')
-    this.tmpPath = path.join(__dirname, '.tmp')
-
-    // this.tmpPath = path.join(__dirname, '.tmp')
-    this.pkgCachePath = path.join(os.homedir(), '.pkg-cache')
+    this.tmpPath = TMP_PATH
+    this.cachePath = CACHE_PATH
+    this.resPath = RES_PATH
+    this.pkgCachePath = PKG_CACHE_PATH
 
     this.metaData = opts.metaData || {}
-
     this.icon = opts.icon ? path.resolve(opts.icon) : null
-
     this.rcData = opts.rcData || {}
 
     this.pkg = opts.pkg
@@ -42,27 +46,10 @@ class PKGMetadata {
     this.baseBinPath = path.join(this.pkgCachePath, 'v2.6', this.baseBinName)
     this.baseBinPathTMP = path.join(this.tmpPath, this.baseBinNameTMP)
 
-    this.rhURL = 'http://www.angusj.com/resourcehacker/resource_hacker.zip'
-    this.rhPath = path.join(this.cachePath, 'rh')
-    this.rhPathZip = this.rhPath + '.zip'
-
-    if (opts.rhPath) {
-      this.rhCustom = true
-      this.rhPathExe = path.resolve(opts.rhPath)
-    } else {
-      this.rhCustom = false
-      this.rhPathExe = path.join(this.rhPath, 'ResourceHacker.exe')
-    }
+    this.rhPath = opts.rhPath
 
     this.rcFilePath = opts.rcFilePath
     this.resFilePath = opts.resFilePath
-
-    // if (opts.rcFilePath) {
-    //   this.rcCustom = true
-    //   this.rcFilePath = opts.rcFilePath
-    // } else {
-    //   this.rcCustom = false
-    // }
   }
 
   async run () {
@@ -70,8 +57,7 @@ class PKGMetadata {
 
     await ensureDir([
       this.cachePath,
-      this.tmpPath,
-      this.rhPath
+      this.tmpPath
     ])
 
     await this.fetchResourceHacker()
@@ -87,19 +73,29 @@ class PKGMetadata {
 
   async fetchResourceHacker () {
     console.log('fetch ResourceHacker')
+    if (this.rhPath) {
+      this.rhPath = path.resolve(this.rhPath)
 
-    if (this.rhCustom) { return }
+      return
+    }
 
-    if (!fs.existsSync(this.rhPathZip)) {
-      const res = await fetch(this.rhURL)
-      const zipOut = fs.createWriteStream(this.rhPathZip)
+    const rhPathDir = path.join(this.cachePath, 'rh')
+    const rhPathZip = rhPathDir + '.zip'
+
+    this.rhPath = path.join(rhPathDir, 'ResourceHacker.exe')
+
+    console.log(this.rhPath)
+
+    if (!fs.existsSync(rhPathZip)) {
+      const res = await fetch(RH_URL)
+      const zipOut = fs.createWriteStream(rhPathZip)
       res.body.pipe(zipOut)
       await waitOnStreamEnd(zipOut)
     }
 
-    if (!fs.existsSync(this.rhPathExe)) {
-      const zipIn = fs.createReadStream(this.rhPathZip)
-      const exeOut = unzipper.Extract({ path: this.rhPath })
+    if (!fs.existsSync(this.rhPath)) {
+      const zipIn = fs.createReadStream(rhPathZip)
+      const exeOut = unzipper.Extract({ path: rhPathDir })
       zipIn.pipe(exeOut)
       await waitOnStreamEnd(exeOut)
     }
@@ -157,7 +153,7 @@ class PKGMetadata {
       await fs.writeFile(this.rcFilePath, rc)
     }
 
-    await this.execRH({
+    await this.execRHInternal({
       open: this.rcFilePath,
       save: this.resFilePath,
       action: 'compile'
@@ -173,7 +169,7 @@ class PKGMetadata {
 
     // edit metadata
 
-    await this.execRH({
+    await this.execRHInternal({
       open: this.baseBinPath,
       save: this.baseBinPath,
       action: 'addoverwrite',
@@ -183,7 +179,7 @@ class PKGMetadata {
     if (this.icon) {
       console.log('change icon')
 
-      await this.execRH({
+      await this.execRHInternal({
         open: this.baseBinPath,
         save: this.baseBinPath,
         action: 'addoverwrite',
@@ -191,27 +187,6 @@ class PKGMetadata {
         mask: 'ICONGROUP,MAINICON,'
       })
     }
-  }
-
-  async execRH (opts) {
-    const possibleOpts = [
-      'open',
-      'action',
-      'save',
-      'resource',
-      'mask'
-    ]
-
-    const args = []
-
-    possibleOpts.forEach(o => {
-      if (opts[o]) {
-        args.push('-' + o)
-        args.push(opts[o])
-      }
-    })
-
-    return execFileP(this.rhPathExe, args)
   }
 
   async runPKG () {
@@ -235,7 +210,57 @@ class PKGMetadata {
   async cleanup () {
     console.log('cleanup')
     await fs.copyFile(this.baseBinPathTMP, this.baseBinPath)
-    await fs.remove(this.tmpPath)
+
+    if (!this.keepTMP) { await fs.remove(this.tmpPath) }
+  }
+
+  async execRHInternal (opts) {
+    return PKGMetadata.execRH(this.rhPath, opts)
+  }
+
+  static async execRH (path, opts) {
+    const possibleOpts = [
+      'open',
+      'action',
+      'save',
+      'resource',
+      'mask'
+    ]
+
+    const args = []
+
+    possibleOpts.forEach(o => {
+      if (opts[o]) {
+        args.push('-' + o)
+        args.push(opts[o])
+      }
+    })
+
+    console.log(path)
+    console.log(args)
+
+    return execFileP(path, args)
+  }
+
+  static async compareExeWithRC (exe, rc) {
+    // const tmpPath = path.join(__dirname, '.tmp')
+    // const tmpRCFile = path.join(tmpPath, 'exeRc.rc')
+
+    // await fs.ensureDir(tmpPath)
+
+    // await PKGMetadata.execRH({
+    //   open: exe,
+    //   save: tmpRCFile,
+    //   action: 'extract',
+    //   mask: 'VERSIONINFO,,'
+    // })
+
+    // // rh.exe -open source.exe -save .\icons -action extract -mask ICONGROUP,, -log CON
+    // const file1 = await fs.readFile(tmpRCFile).toString('utf-8').trim()
+    // const rcContent = await fs.readFile(rc).toString('utf-8').trim()
+    // const diff = JsDiff.diffTrimmedLines(file1, rcContent)
+
+    // console.log(diff)
   }
 }
 
@@ -276,4 +301,8 @@ async function randString (length, encoding) {
   return encoding ? bytes.toString(encoding) : bytes.toString()
 }
 
-module.exports = { PKGMetadata, exec }
+class Util {
+
+}
+
+module.exports = { PKGMetadata, exec, Util }

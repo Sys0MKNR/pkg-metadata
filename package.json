@@ -1,12 +1,13 @@
 {
   "name": "pkg-metadata",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "desc",
   "main": "index.js",
   "scripts": {
     "test": "ava"
   },
   "dependencies": {
+    "diff": "^4.0.2",
     "fs-extra": "9.0.1",
     "node-fetch": "^2.6.0",
     "pkg": "^4.4.9",
