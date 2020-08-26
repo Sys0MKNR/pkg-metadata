@@ -2,7 +2,7 @@ const path = require('path')
 const { PKGMetadata } = require('../index.js')
 
 const metadata = new PKGMetadata({
-
+  keepTMP: true,
   nodeVersion: '12.13.1',
   metaData: {
     version: '1.1.11',
@@ -10,7 +10,8 @@ const metadata = new PKGMetadata({
     description: 'this is a custom test desc',
     legal: 'copyright msz'
   },
-  icon: path.join(__dirname, '../res/icon.ico'),
+  // icon: path.join(__dirname, '../res/icon.ico'),
+  icon: path.join(__dirname, '../res/icon.png'),
   // rcFilePath: path.join(__dirname, 'bin.rc'),
   // rhPath: path.join(__dirname, '../', '.cache', 't', 'ResourceHacker.exe'),
   rcData: {

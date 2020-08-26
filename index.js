@@ -14,7 +14,10 @@ const unzipper = require('unzipper')
 const pkgfetch = require('pkg-fetch')
 const { exec: pkgExec } = require('pkg')
 
-var JsDiff = require('diff')
+const JsDiff = require('diff')
+const sizeOf = require('image-size')
+const sharp = require('sharp')
+const icongen = require('icon-gen')
 
 const TMP_PATH = path.join(__dirname, '.tmp')
 const CACHE_PATH = path.join(__dirname, '.cache')
@@ -75,7 +78,6 @@ class PKGMetadata {
     console.log('fetch ResourceHacker')
     if (this.rhPath) {
       this.rhPath = path.resolve(this.rhPath)
-
       return
     }
 
@@ -83,8 +85,6 @@ class PKGMetadata {
     const rhPathZip = rhPathDir + '.zip'
 
     this.rhPath = path.join(rhPathDir, 'ResourceHacker.exe')
-
-    console.log(this.rhPath)
 
     if (!fs.existsSync(rhPathZip)) {
       const res = await fetch(RH_URL)
@@ -179,14 +179,117 @@ class PKGMetadata {
     if (this.icon) {
       console.log('change icon')
 
+      const iconType = this.icon.split('.').pop()
+      if (iconType === 'ico') {
+        this.finalIcon = this.icon
+      } else {
+        await this.editIcon()
+      }
+
+      // await this.execRHInternal({
+      //   open: this.baseBinPath,
+      //   save: this.baseBinPath,
+      //   action: 'delete',
+      //   // resource: this.finalIcon,
+      //   mask: 'ICONGROUP,1,'
+      // })
+
+      // await this.execRHInternal({
+      //   open: this.baseBinPath,
+      //   save: this.baseBinPath,
+      //   action: 'addoverwrite',
+      //   resource: this.finalIcon,
+      //   mask: 'ICONGROUP,MAINICON,'
+      // })
+
       await this.execRHInternal({
         open: this.baseBinPath,
         save: this.baseBinPath,
         action: 'addoverwrite',
-        resource: this.icon,
-        mask: 'ICONGROUP,MAINICON,'
+        resource: this.finalIcon,
+        mask: 'ICONGROUP,1,'
+      })
+
+      // await this.execRHInternal({
+      //   open: this.baseBinPath,
+      //   save: this.baseBinPath,
+      //   action: 'delete',
+      //   // resource: this.finalIcon,
+      //   mask: 'ICON,,'
+      // })
+    }
+  }
+
+  async editIcon () {
+    console.log('edit icon')
+    if (!this.icon) { return }
+
+    const stat = await fs.lstat(this.icon)
+
+    const icons = {
+      16: null,
+      24: null,
+      32: null,
+      48: null,
+      64: null,
+      128: null,
+      256: null
+    }
+
+    const tmpIcons = {}
+
+    let biggestIcon = 0
+
+    if (stat.isFile()) {
+      const dimensions = sizeOf(this.icon)
+      tmpIcons[dimensions.width] = this.icon
+      biggestIcon = dimensions.width
+    } else {
+      const iconPaths = await fs.readdir(this.icon)
+
+      iconPaths.forEach(i => {
+        const name = i.split('.')[0]
+
+        const size = parseInt(name)
+
+        biggestIcon = size > biggestIcon ? size : biggestIcon
+
+        tmpIcons[name] = path.join(this.icon, i)
       })
     }
+
+    Object.keys(tmpIcons).filter(key => key in icons).forEach(key => {
+      icons[key] = tmpIcons[key]
+    })
+
+    const biggestIconBuffer = await fs.readFile(icons[biggestIcon])
+    const tmpIconPath = path.join(this.tmpPath, 'icon')
+    const tmpIconRawPath = path.join(tmpIconPath, 'raw')
+
+    await fs.ensureDir(tmpIconRawPath)
+
+    await Promise.all(Object.entries(icons).map(async ([size, i]) => {
+      size = parseInt(size)
+      const iIconPath = path.join(tmpIconRawPath, size + '.png')
+      if (i === null) {
+        await sharp(biggestIconBuffer)
+          .png()
+          .resize(size, size)
+          .toFile(iIconPath)
+      } else {
+        await fs.copyFile(i, iIconPath)
+      }
+    }))
+
+    const tmpIconFinalPath = path.join(tmpIconPath, 'final')
+    await fs.ensureDir(tmpIconFinalPath)
+
+    this.finalIcon = path.join(tmpIconFinalPath, 'icon.ico')
+
+    await icongen(tmpIconRawPath, tmpIconFinalPath, {
+      report: true,
+      ico: { name: 'icon' }
+    })
   }
 
   async runPKG () {
@@ -236,33 +339,30 @@ class PKGMetadata {
       }
     })
 
-    console.log(path)
-    console.log(args)
-
     return execFileP(path, args)
   }
-
-  static async compareExeWithRC (exe, rc) {
-    // const tmpPath = path.join(__dirname, '.tmp')
-    // const tmpRCFile = path.join(tmpPath, 'exeRc.rc')
-
-    // await fs.ensureDir(tmpPath)
-
-    // await PKGMetadata.execRH({
-    //   open: exe,
-    //   save: tmpRCFile,
-    //   action: 'extract',
-    //   mask: 'VERSIONINFO,,'
-    // })
-
-    // // rh.exe -open source.exe -save .\icons -action extract -mask ICONGROUP,, -log CON
-    // const file1 = await fs.readFile(tmpRCFile).toString('utf-8').trim()
-    // const rcContent = await fs.readFile(rc).toString('utf-8').trim()
-    // const diff = JsDiff.diffTrimmedLines(file1, rcContent)
-
-    // console.log(diff)
-  }
 }
+
+// static async compareExeWithRC (exe, rc) {
+// const tmpPath = path.join(__dirname, '.tmp')
+// const tmpRCFile = path.join(tmpPath, 'exeRc.rc')
+
+// await fs.ensureDir(tmpPath)
+
+// await PKGMetadata.execRH({
+//   open: exe,
+//   save: tmpRCFile,
+//   action: 'extract',
+//   mask: 'VERSIONINFO,,'
+// })
+
+// // rh.exe -open source.exe -save .\icons -action extract -mask ICONGROUP,, -log CON
+// const file1 = await fs.readFile(tmpRCFile).toString('utf-8').trim()
+// const rcContent = await fs.readFile(rc).toString('utf-8').trim()
+// const diff = JsDiff.diffTrimmedLines(file1, rcContent)
+
+// console.log(diff)
+// }
 
 function toCommaVersion (version) {
   const versionRegex = RegExp('([0-9]\.){3}[0-9]')
@@ -301,8 +401,4 @@ async function randString (length, encoding) {
   return encoding ? bytes.toString(encoding) : bytes.toString()
 }
 
-class Util {
-
-}
-
-module.exports = { PKGMetadata, exec, Util }
+module.exports = { PKGMetadata, exec }
