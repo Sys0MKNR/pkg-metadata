@@ -89,11 +89,24 @@ const metadata = new PKGMetadata({
 
 Which node version should be used for pkg. 
 
+## arch [String]
+
+The node binary architecture. x64 or x86. Defaults to x64.
+
 
 ## icon [String]
 
-Path to the icon. 
+Used to set the exe icon.
+Possible path options:  
+* .ico file
+* png file (256x256)
+* a directory with png files for 16x16, 24x24, 32x32, 48x48, 64x64, 128x128 and 256x256. The files have to be named \<dimension>.png (16.png, 256.png, etc)
 
+For the png and directory option missing icons are generated from the biggest provided one. 
+
+## keepTMP [Boolean]
+
+Keep the temporary .tmp folder. 
 
 ## metaData [Object]
 
@@ -109,10 +122,16 @@ Metadata for the exe.
 
 ## rcFilePath [String]
 
-File used to generate the exe metadata. 
+File used to generate the res file for the exe metadata. 
 
 > If this value is set metaData and rcDat will be ignored. 
 
+
+## resFilePath [String]
+
+File used to edit the exe metadata. 
+
+> If this value is set metaData, rcDat and rcFilePath will be ignored. 
 
 ## rcData [Object]
 
@@ -162,5 +181,4 @@ The path to the ResourceHacker executable.
 # Rand info
 
 * wip
-* icons are pretty scuffed. The old ones are still in the exe and only the mainicon is set to the new one. 
 * nodeVersion and the pkg target version have to be an exact match. Otherwise pkg may use a wrong node base binary. 

@@ -32,6 +32,7 @@ class PKGMetadata {
   constructor (opts) {
     this.keepTMP = opts.keepTMP
     this.nodeVersion = opts.nodeVersion || process.version.slice(1)
+    this.arch = opts.arch || 'x64'
 
     this.tmpPath = TMP_PATH
     this.cachePath = CACHE_PATH
@@ -44,10 +45,9 @@ class PKGMetadata {
 
     this.pkg = opts.pkg
 
-    this.baseBinName = `fetched-v${this.nodeVersion}-win-x64`
-    this.baseBinNameTMP = this.baseBinName + '.backup'
+    this.baseBinName = `fetched-v${this.nodeVersion}-win-${this.arch}`
     this.baseBinPath = path.join(this.pkgCachePath, 'v2.6', this.baseBinName)
-    this.baseBinPathTMP = path.join(this.tmpPath, this.baseBinNameTMP)
+    this.baseBinPathTMP = path.join(this.tmpPath, this.baseBinName)
 
     this.rhPath = opts.rhPath
 
@@ -104,7 +104,7 @@ class PKGMetadata {
   async fetchBinaries () {
     console.log('fetch base binaries')
     if (!fs.existsSync(this.baseBinPath)) {
-      await pkgfetch.need({ nodeRange: `node${this.nodeVersion}`, platform: 'win', arch: 'x64' })
+      await pkgfetch.need({ nodeRange: `node${this.nodeVersion}`, platform: 'win', arch: this.arch })
     }
   }
 
@@ -164,7 +164,6 @@ class PKGMetadata {
     console.log('edit metadata')
     // copy to temp
 
-    if (!fs.existsSync(this.baseBinPath)) { throw new Error() }
     await fs.copyFile(this.baseBinPath, this.baseBinPathTMP)
 
     // edit metadata
@@ -183,24 +182,8 @@ class PKGMetadata {
       if (iconType === 'ico') {
         this.finalIcon = this.icon
       } else {
-        await this.editIcon()
+        await this.prepareIcon()
       }
-
-      // await this.execRHInternal({
-      //   open: this.baseBinPath,
-      //   save: this.baseBinPath,
-      //   action: 'delete',
-      //   // resource: this.finalIcon,
-      //   mask: 'ICONGROUP,1,'
-      // })
-
-      // await this.execRHInternal({
-      //   open: this.baseBinPath,
-      //   save: this.baseBinPath,
-      //   action: 'addoverwrite',
-      //   resource: this.finalIcon,
-      //   mask: 'ICONGROUP,MAINICON,'
-      // })
 
       await this.execRHInternal({
         open: this.baseBinPath,
@@ -209,18 +192,10 @@ class PKGMetadata {
         resource: this.finalIcon,
         mask: 'ICONGROUP,1,'
       })
-
-      // await this.execRHInternal({
-      //   open: this.baseBinPath,
-      //   save: this.baseBinPath,
-      //   action: 'delete',
-      //   // resource: this.finalIcon,
-      //   mask: 'ICON,,'
-      // })
     }
   }
 
-  async editIcon () {
+  async prepareIcon () {
     console.log('edit icon')
     if (!this.icon) { return }
 
