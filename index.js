@@ -316,28 +316,32 @@ class PKGMetadata {
 
     return execFileP(path, args)
   }
+
+  async compareExeWithRC (exe, rc) {
+    console.log(exe)
+    console.log(rc)
+
+    const tmpRCFile = path.join(this.tmpPath, 'exeRc.rc')
+
+    await this.execRHInternal({
+      open: exe,
+      save: tmpRCFile,
+      action: 'extract',
+      mask: 'VERSIONINFO,,'
+    })
+
+    // rh.exe -open source.exe -save .\icons -action extract -mask ICONGROUP,, -log CON
+    const file1 = (await fs.readFile(tmpRCFile)).toString('utf-8').trim()
+    const rcContent = (await fs.readFile(rc)).toString('utf-8').trim()
+
+    // console.log(file1)
+    // console.log(rcContent)
+
+    const diff = JsDiff.diffTrimmedLines(file1, rcContent)
+
+    console.log(JSON.stringify(diff, null, 3))
+  }
 }
-
-// static async compareExeWithRC (exe, rc) {
-// const tmpPath = path.join(__dirname, '.tmp')
-// const tmpRCFile = path.join(tmpPath, 'exeRc.rc')
-
-// await fs.ensureDir(tmpPath)
-
-// await PKGMetadata.execRH({
-//   open: exe,
-//   save: tmpRCFile,
-//   action: 'extract',
-//   mask: 'VERSIONINFO,,'
-// })
-
-// // rh.exe -open source.exe -save .\icons -action extract -mask ICONGROUP,, -log CON
-// const file1 = await fs.readFile(tmpRCFile).toString('utf-8').trim()
-// const rcContent = await fs.readFile(rc).toString('utf-8').trim()
-// const diff = JsDiff.diffTrimmedLines(file1, rcContent)
-
-// console.log(diff)
-// }
 
 function toCommaVersion (version) {
   const versionRegex = RegExp('([0-9]\.){3}[0-9]')
@@ -369,11 +373,6 @@ async function exec (opts) {
   const metadata = new PKGMetadata(opts)
   await metadata.run()
   return metadata
-}
-
-async function randString (length, encoding) {
-  const bytes = await randomBytes(length)
-  return encoding ? bytes.toString(encoding) : bytes.toString()
 }
 
 module.exports = { PKGMetadata, exec }

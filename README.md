@@ -182,3 +182,4 @@ The path to the ResourceHacker executable.
 
 * wip
 * nodeVersion and the pkg target version have to be an exact match. Otherwise pkg may use a wrong node base binary. 
+* if the base node binary gets corrupted just delete the \<home_dir\>/.pkg-cache folder

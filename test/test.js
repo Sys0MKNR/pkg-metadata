@@ -20,7 +20,7 @@ test('basic', async t => {
       version: '1.1.11',
       name: 'testCustom',
       description: 'this is a custom test desc',
-      legal: 'copyright msz'
+      legal: 'copyright test'
     },
     icon: path.join(__dirname, '../res/icon.ico'),
     pkg: {
@@ -32,5 +32,8 @@ test('basic', async t => {
   const p = new PKGMetadata(opts)
   await p.run()
 
+  // await p.compareExeWithRC(path.join(TMP_PATH, 'basic.exe'), path.join(p.tmpPath, 'bin.rc'))
+
+  p.cleanup()
   t.pass()
 })
