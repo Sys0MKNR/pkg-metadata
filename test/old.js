@@ -3,7 +3,12 @@ const { PKGMetadata } = require('../index.js')
 
 const metadata = new PKGMetadata({
   keepTMP: true,
-  nodeVersion: '12.13.1',
+  targets: [
+    'node12-win-x64',
+    'node12-win-x86',
+    'node13',
+    'host'
+  ],
   metaData: {
     version: '1.1.11',
     name: 'testCustom',
@@ -25,7 +30,7 @@ const metadata = new PKGMetadata({
   },
   pkg: {
     src: path.join(__dirname, 'pkgTest.js'),
-    out: path.join(__dirname, '../', '.dist/test.exe')
+    out: path.join(__dirname, '../', '.dist')
     // args: [
     //   path.join(__dirname, 'pkgTest.js'),
     //   '--target',

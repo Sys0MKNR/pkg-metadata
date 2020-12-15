@@ -11,48 +11,59 @@ const randomBytes = util.promisify(crypto.randomBytes)
 const fetch = require('node-fetch')
 const fs = require('fs-extra')
 const unzipper = require('unzipper')
-const pkgfetch = require('pkg-fetch')
-const { exec: pkgExec } = require('pkg')
 
 const JsDiff = require('diff')
 const sizeOf = require('image-size')
 const sharp = require('sharp')
 const icongen = require('icon-gen')
 
-const TMP_PATH = path.join(__dirname, '.tmp')
-const CACHE_PATH = path.join(__dirname, '.cache')
-const RES_PATH = path.join(__dirname, 'res')
-
-const PKG_CACHE_PATH = path.join(os.homedir(), '.pkg-cache')
-
 const RH_URL = 'http://www.angusj.com/resourcehacker/resource_hacker.zip'
 
 /** Class representing a PKGMetadata instance. */
 class PKGMetadata {
   constructor (opts) {
-    this.keepTMP = opts.keepTMP
-    this.nodeVersion = opts.nodeVersion || process.version.slice(1)
-    this.arch = opts.arch || 'x64'
+    const {
+      keepTMP,
+      targets,
+      metaData,
+      icon,
+      pkg,
+      rcData,
+      rhPath,
+      rcFilePath,
+      resFilePath,
+      pkgCachePath
 
-    this.tmpPath = TMP_PATH
-    this.cachePath = CACHE_PATH
-    this.resPath = RES_PATH
-    this.pkgCachePath = PKG_CACHE_PATH
+    } = opts
 
-    this.metaData = opts.metaData || {}
-    this.icon = opts.icon ? path.resolve(opts.icon) : null
-    this.rcData = opts.rcData || {}
+    this.keepTMP = keepTMP
 
-    this.pkg = opts.pkg
+    this.unparsedTargets = targets || ['host']
+    // this.versions = targets
 
-    this.baseBinName = `fetched-v${this.nodeVersion}-win-${this.arch}`
-    this.baseBinPath = path.join(this.pkgCachePath, 'v2.6', this.baseBinName)
-    this.baseBinPathTMP = path.join(this.tmpPath, this.baseBinName)
+    // this.nodeVersion = nodeVersion || process.version.slice(1)
+    // this.arch = arch || 'x64'
 
-    this.rhPath = opts.rhPath
+    this.tmpPath = path.join(__dirname, '.tmp')
+    this.binTMPPath = path.join(this.tmpPath, 'bin')
+    this.cachePath = path.join(__dirname, '.cache')
+    this.resPath = path.join(__dirname, 'res')
+    this.pkgCachePath = pkgCachePath || path.join(this.cachePath, 'pkg-cache')
+    process.env.PKG_CACHE_PATH = this.pkgCachePath
 
-    this.rcFilePath = opts.rcFilePath
-    this.resFilePath = opts.resFilePath
+    this.metaData = metaData || {}
+    this.icon = icon ? path.resolve(icon) : null
+    this.rcData = rcData || {}
+
+    this.pkg = pkg
+
+    // this.baseBinName = `fetched-v${this.nodeVersion}-win-${this.arch}`
+    // this.baseBinPath = path.join(this.pkgCachePath, 'v2.6', this.baseBinName)
+    // this.baseBinPathTMP = path.join(this.tmpPath, this.baseBinName)
+    this.rhPath = rhPath
+
+    this.rcFilePath = rcFilePath
+    this.resFilePath = resFilePath
   }
 
   async run () {
@@ -60,10 +71,19 @@ class PKGMetadata {
 
     await ensureDir([
       this.cachePath,
-      this.tmpPath
+      this.tmpPath,
+      this.binTMPPath,
+      this.pkgCachePath
     ])
 
     await this.fetchResourceHacker()
+
+    // scuffed hack bc env gets used too early otherwise
+    this.pkgFetch = require('pkg-fetch')
+    this.pkgExec = require('pkg').exec
+
+    this.parseTargets()
+
     await this.fetchBinaries()
     await this.generateRES()
     await this.editMetaData()
@@ -75,7 +95,7 @@ class PKGMetadata {
   }
 
   async fetchResourceHacker () {
-    console.log('fetch ResourceHacker')
+    console.log('fetch ResourceHacker..')
     if (this.rhPath) {
       this.rhPath = path.resolve(this.rhPath)
       return
@@ -102,9 +122,11 @@ class PKGMetadata {
   }
 
   async fetchBinaries () {
-    console.log('fetch base binaries')
-    if (!fs.existsSync(this.baseBinPath)) {
-      await pkgfetch.need({ nodeRange: `node${this.nodeVersion}`, platform: 'win', arch: this.arch })
+    console.log('fetch base binaries...')
+
+    for (const target of this.targets) {
+      target.fullPath = await this.pkgFetch.need(target.target)
+      target.fileName = path.basename(target.fullPath)
     }
   }
 
@@ -126,10 +148,10 @@ class PKGMetadata {
 
   async generateRES () {
     if (this.resFilePath) { return }
+    console.log('generate Res...')
 
     this.resFilePath = path.join(this.tmpPath, 'bin.res')
 
-    console.log('generate Res')
     if (!this.rcFilePath) {
       this.rcFilePath = path.join(this.tmpPath, 'bin.rc')
       const finalRCDAta = this.generateRCData()
@@ -162,36 +184,45 @@ class PKGMetadata {
 
   async editMetaData () {
     console.log('edit metadata')
-    // copy to temp
 
-    await fs.copyFile(this.baseBinPath, this.baseBinPathTMP)
+    console.log(this.targets)
 
-    // edit metadata
-
-    await this.execRHInternal({
-      open: this.baseBinPath,
-      save: this.baseBinPath,
-      action: 'addoverwrite',
-      resource: this.resFilePath
-    })
-
-    if (this.icon) {
-      console.log('change icon')
-
-      const iconType = this.icon.split('.').pop()
-      if (iconType === 'ico') {
-        this.finalIcon = this.icon
-      } else {
-        await this.prepareIcon()
+    for (const target of this.targets) {
+      if (target.target.platform !== 'win') {
+        continue
       }
+      console.log('lul')
+      target.tmpPath = path.join(this.binTMPPath, target.fileName)
+
+      await fs.copyFile(target.fullPath, target.tmpPath)
 
       await this.execRHInternal({
-        open: this.baseBinPath,
-        save: this.baseBinPath,
+        open: target.fullPath,
+        save: target.fullPath,
         action: 'addoverwrite',
-        resource: this.finalIcon,
-        mask: 'ICONGROUP,1,'
+        resource: this.resFilePath
       })
+
+      if (this.icon) {
+        console.log('change icon')
+
+        const iconType = this.icon.split('.').pop()
+        if (iconType === 'ico') {
+          this.finalIcon = this.icon
+        } else {
+          if (!this.finalIcon) {
+            await this.prepareIcon()
+          }
+        }
+
+        await this.execRHInternal({
+          open: target.fullPath,
+          save: target.fullPath,
+          action: 'addoverwrite',
+          resource: this.finalIcon,
+          mask: 'ICONGROUP,1,'
+        })
+      }
     }
   }
 
@@ -276,18 +307,21 @@ class PKGMetadata {
       args = [
         this.pkg.src,
         '--target',
-        `node${this.nodeVersion}-win`,
-        '--output',
+        this.unparsedTargets.join(','),
+        '--out-path',
         this.pkg.out
       ]
     }
 
-    await pkgExec(args)
+    await this.pkgExec(args)
   }
 
   async cleanup () {
     console.log('cleanup')
-    await fs.copyFile(this.baseBinPathTMP, this.baseBinPath)
+
+    for (const target of this.targets.filter(t => t.binTMPPath)) {
+      await fs.copyFile(target.binTMPPath, target.fullPath)
+    }
 
     if (!this.keepTMP) { await fs.remove(this.tmpPath) }
   }
@@ -340,6 +374,49 @@ class PKGMetadata {
     const diff = JsDiff.diffTrimmedLines(file1, rcContent)
 
     console.log(JSON.stringify(diff, null, 3))
+  }
+
+  parseTargets () {
+    // [ 'node6-macos-x64', 'node6-linux-x64' ]
+    const {
+      hostArch, hostPlatform, isValidNodeRange, knownArchs,
+      knownPlatforms, toFancyArch, toFancyPlatform
+    } = this.pkgFetch.system
+    const hostNodeRange = 'node' + process.version.match(/^v(\d+)/)[1]
+
+    const targets = []
+    for (const item of this.unparsedTargets) {
+      const target = {
+        nodeRange: hostNodeRange,
+        platform: hostPlatform,
+        arch: hostArch
+      }
+      if (item !== 'host') {
+        for (const token of item.split('-')) {
+          if (!token) continue
+          if (isValidNodeRange(token)) {
+            target.nodeRange = token
+            continue
+          }
+          const p = toFancyPlatform(token)
+          if (knownPlatforms.indexOf(p) >= 0) {
+            target.platform = p
+            continue
+          }
+          const a = toFancyArch(token)
+          if (knownArchs.indexOf(a) >= 0) {
+            target.arch = a
+            continue
+          }
+          throw new Error('invalid target: ' + item)
+        }
+      }
+      targets.push({
+        name: item,
+        target
+      })
+    }
+    this.targets = targets
   }
 }
 

@@ -1,3 +1,8 @@
+# Info
+
+Used for generating bundleded executables with custom metadata with pkg for windows. 
+
+
 # usage 
 
 

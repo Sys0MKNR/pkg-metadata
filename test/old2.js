@@ -34,6 +34,6 @@ test('basic', async t => {
 
   // await p.compareExeWithRC(path.join(TMP_PATH, 'basic.exe'), path.join(p.tmpPath, 'bin.rc'))
 
-  // p.cleanup()
-  // t.pass()
+  p.cleanup()
+  t.pass()
 })
