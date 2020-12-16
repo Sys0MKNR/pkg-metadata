@@ -1,12 +1,11 @@
 const path = require('path')
-const os = require('os')
 const util = require('util')
-const crypto = require('crypto')
 
-const { execFile } = require('child_process')
+const {
+  execFile
+} = require('child_process')
 
 const execFileP = util.promisify(execFile)
-const randomBytes = util.promisify(crypto.randomBytes)
 
 const fetch = require('node-fetch')
 const fs = require('fs-extra')
@@ -67,7 +66,7 @@ class PKGMetadata {
   }
 
   async run () {
-    console.log('start...')
+    console.log('Start...')
 
     await ensureDir([
       this.cachePath,
@@ -76,14 +75,13 @@ class PKGMetadata {
       this.pkgCachePath
     ])
 
-    await this.fetchResourceHacker()
-
     // scuffed hack bc env gets used too early otherwise
     this.pkgFetch = require('pkg-fetch')
     this.pkgExec = require('pkg').exec
 
     this.parseTargets()
 
+    await this.fetchResourceHacker()
     await this.fetchBinaries()
     await this.generateRES()
     await this.editMetaData()
@@ -115,14 +113,18 @@ class PKGMetadata {
 
     if (!fs.existsSync(this.rhPath)) {
       const zipIn = fs.createReadStream(rhPathZip)
-      const exeOut = unzipper.Extract({ path: rhPathDir })
+      const exeOut = unzipper.Extract({
+        path: rhPathDir
+      })
       zipIn.pipe(exeOut)
       await waitOnStreamEnd(exeOut)
     }
   }
 
   async fetchBinaries () {
-    console.log('fetch base binaries...')
+    console.log('Fetch base binaries...')
+    console.log('targets: ')
+    console.log(this.targets)
 
     for (const target of this.targets) {
       target.fullPath = await this.pkgFetch.need(target.target)
@@ -131,6 +133,7 @@ class PKGMetadata {
   }
 
   generateRCData () {
+    console.log('Generate RC data...')
     const exeName = this.metaData.name + '.exe'
 
     const customData = {
@@ -143,12 +146,17 @@ class PKGMetadata {
       ProductVersion: this.metaData.version
     }
 
-    return { ...removeNullProperties(customData), ...removeNullProperties(this.rcData) }
+    return {
+      ...removeNullProperties(customData),
+      ...removeNullProperties(this.rcData)
+    }
   }
 
   async generateRES () {
-    if (this.resFilePath) { return }
-    console.log('generate Res...')
+    if (this.resFilePath) {
+      return
+    }
+    console.log('generate res file...')
 
     this.resFilePath = path.join(this.tmpPath, 'bin.res')
 
@@ -183,15 +191,25 @@ class PKGMetadata {
   }
 
   async editMetaData () {
-    console.log('edit metadata')
+    console.log('Edit metadata...')
 
-    console.log(this.targets)
+    if (this.icon) {
+      console.log('Prepare icon...')
+      const iconType = this.icon.split('.').pop()
+      if (iconType === 'ico') {
+        this.finalIcon = this.icon
+      } else {
+        this.finalIcon = await this.prepareIcon()
+      }
+    }
 
     for (const target of this.targets) {
       if (target.target.platform !== 'win') {
         continue
       }
-      console.log('lul')
+
+      console.log('Edit base binary of target: ' + target.name)
+
       target.tmpPath = path.join(this.binTMPPath, target.fileName)
 
       await fs.copyFile(target.fullPath, target.tmpPath)
@@ -204,17 +222,6 @@ class PKGMetadata {
       })
 
       if (this.icon) {
-        console.log('change icon')
-
-        const iconType = this.icon.split('.').pop()
-        if (iconType === 'ico') {
-          this.finalIcon = this.icon
-        } else {
-          if (!this.finalIcon) {
-            await this.prepareIcon()
-          }
-        }
-
         await this.execRHInternal({
           open: target.fullPath,
           save: target.fullPath,
@@ -227,8 +234,10 @@ class PKGMetadata {
   }
 
   async prepareIcon () {
-    console.log('edit icon')
-    if (!this.icon) { return }
+    console.log('Generate icon...')
+    if (!this.icon) {
+      return
+    }
 
     const stat = await fs.lstat(this.icon)
 
@@ -290,16 +299,18 @@ class PKGMetadata {
     const tmpIconFinalPath = path.join(tmpIconPath, 'final')
     await fs.ensureDir(tmpIconFinalPath)
 
-    this.finalIcon = path.join(tmpIconFinalPath, 'icon.ico')
-
     await icongen(tmpIconRawPath, tmpIconFinalPath, {
       report: true,
-      ico: { name: 'icon' }
+      ico: {
+        name: 'icon'
+      }
     })
+
+    return path.join(tmpIconFinalPath, 'icon.ico')
   }
 
   async runPKG () {
-    console.log('run pkg')
+    console.log('Run pkg...')
 
     let args = this.pkg.args
 
@@ -323,32 +334,13 @@ class PKGMetadata {
       await fs.copyFile(target.binTMPPath, target.fullPath)
     }
 
-    if (!this.keepTMP) { await fs.remove(this.tmpPath) }
+    if (!this.keepTMP) {
+      await fs.remove(this.tmpPath)
+    }
   }
 
-  async execRHInternal (opts) {
+  execRHInternal (opts) {
     return PKGMetadata.execRH(this.rhPath, opts)
-  }
-
-  static async execRH (path, opts) {
-    const possibleOpts = [
-      'open',
-      'action',
-      'save',
-      'resource',
-      'mask'
-    ]
-
-    const args = []
-
-    possibleOpts.forEach(o => {
-      if (opts[o]) {
-        args.push('-' + o)
-        args.push(opts[o])
-      }
-    })
-
-    return execFileP(path, args)
   }
 
   async compareExeWithRC (exe, rc) {
@@ -379,8 +371,13 @@ class PKGMetadata {
   parseTargets () {
     // [ 'node6-macos-x64', 'node6-linux-x64' ]
     const {
-      hostArch, hostPlatform, isValidNodeRange, knownArchs,
-      knownPlatforms, toFancyArch, toFancyPlatform
+      hostArch,
+      hostPlatform,
+      isValidNodeRange,
+      knownArchs,
+      knownPlatforms,
+      toFancyArch,
+      toFancyPlatform
     } = this.pkgFetch.system
     const hostNodeRange = 'node' + process.version.match(/^v(\d+)/)[1]
 
@@ -389,7 +386,8 @@ class PKGMetadata {
       const target = {
         nodeRange: hostNodeRange,
         platform: hostPlatform,
-        arch: hostArch
+        arch: hostArch,
+        name: item
       }
       if (item !== 'host') {
         for (const token of item.split('-')) {
@@ -418,10 +416,31 @@ class PKGMetadata {
     }
     this.targets = targets
   }
+
+  static async execRH (path, opts) {
+    const possibleOpts = [
+      'open',
+      'action',
+      'save',
+      'resource',
+      'mask'
+    ]
+
+    const args = []
+
+    possibleOpts.forEach(o => {
+      if (opts[o]) {
+        args.push('-' + o)
+        args.push(opts[o])
+      }
+    })
+
+    return execFileP(path, args)
+  }
 }
 
 function toCommaVersion (version) {
-  const versionRegex = RegExp('([0-9]\.){3}[0-9]')
+  const versionRegex = RegExp('([0-9].){3}[0-9]')
 
   if (versionRegex.test(version)) {
     version = version.replace(/\./g, ',')
@@ -452,4 +471,7 @@ async function exec (opts) {
   return metadata
 }
 
-module.exports = { PKGMetadata, exec }
+module.exports = {
+  PKGMetadata,
+  exec
+}

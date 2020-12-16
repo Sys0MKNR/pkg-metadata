@@ -3,12 +3,12 @@ const { PKGMetadata } = require('../index.js')
 
 const metadata = new PKGMetadata({
   keepTMP: true,
-  targets: [
-    'node12-win-x64',
-    'node12-win-x86',
-    'node13',
-    'host'
-  ],
+  // targets: [
+  //   'node12-win-x64',
+  //   'node12-win-x86',
+  //   'node13',
+  //   'host'
+  // ],
   metaData: {
     version: '1.1.11',
     name: 'testCustom',
