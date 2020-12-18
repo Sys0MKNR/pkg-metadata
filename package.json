@@ -6,6 +6,10 @@
   "scripts": {
     "test": "ava"
   },
+  "os" : [ "win32" ],
+  "engines" : { 
+    "node" : ">=10.0.0" 
+  },
   "dependencies": {
     "commander": "^6.1.0",
     "diff": "^4.0.2",
