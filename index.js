@@ -22,26 +22,18 @@ const RH_URL = 'http://www.angusj.com/resourcehacker/resource_hacker.zip'
 class PKGMetadata {
   constructor (opts) {
     const {
-      keepTMP,
-      targets,
-      metaData,
       icon,
+      keepTMP,
+      metaData,
       pkg,
+      pkgCachePath,
       rcData,
-      rhPath,
       rcFilePath,
       resFilePath,
-      pkgCachePath
+      rhPath,
+      targets
 
     } = opts
-
-    this.keepTMP = keepTMP
-
-    this.unparsedTargets = targets || ['host']
-    // this.versions = targets
-
-    // this.nodeVersion = nodeVersion || process.version.slice(1)
-    // this.arch = arch || 'x64'
 
     this.tmpPath = path.join(__dirname, '.tmp')
     this.binTMPPath = path.join(this.tmpPath, 'bin')
@@ -50,17 +42,17 @@ class PKGMetadata {
     this.pkgCachePath = pkgCachePath || path.join(this.cachePath, 'pkg-cache')
     process.env.PKG_CACHE_PATH = this.pkgCachePath
 
-    this.metaData = metaData || {}
-    this.icon = icon ? path.resolve(icon) : null
-    this.rcData = rcData || {}
+    this.keepTMP = keepTMP
+
+    this.unparsedTargets = targets || ['host']
 
     this.pkg = pkg
 
-    // this.baseBinName = `fetched-v${this.nodeVersion}-win-${this.arch}`
-    // this.baseBinPath = path.join(this.pkgCachePath, 'v2.6', this.baseBinName)
-    // this.baseBinPathTMP = path.join(this.tmpPath, this.baseBinName)
     this.rhPath = rhPath
 
+    this.metaData = metaData || {}
+    this.icon = icon ? path.resolve(icon) : null
+    this.rcData = rcData || {}
     this.rcFilePath = rcFilePath
     this.resFilePath = resFilePath
   }
