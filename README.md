@@ -183,7 +183,7 @@ File used to edit the exe metadata.
 
 
 
-## rhPath
+## rhPath [String]
 
 The path to the ResourceHacker executable. 
 
@@ -191,15 +191,17 @@ The path to the ResourceHacker executable.
 
 
 
-## targets
+## targets [Array]
 
-The 
+The targets. 
 
-> If set, ResourceHacker won't be downloaded.
+> Uses the same target strings as [vercel/pkg](https://github.com/vercel/pkg). (e.g: node12-win-x64)
+
+> If empty the hosts nodeversion, platform and arch is used. 
+
 
 
 # Rand info
 
 * wip
-* nodeVersion and the pkg target version have to be an exact match. Otherwise pkg may use a wrong node base binary. 
-* if the base node binary gets corrupted just delete the \<home_dir\>/.pkg-cache folder
+
