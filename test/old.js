@@ -2,7 +2,7 @@ const path = require('path')
 const { PKGMetadata } = require('../index.js')
 
 const metadata = new PKGMetadata({
-  keepTMP: true,
+  // keepTMP: true,
   // targets: [
   //   'node12-win-x64',
   //   'node12-win-x86',

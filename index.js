@@ -10,11 +10,16 @@ const execFileP = util.promisify(execFile)
 const fetch = require('node-fetch')
 const fs = require('fs-extra')
 const unzipper = require('unzipper')
-
+const decache = require('decache')
 const JsDiff = require('diff')
 const sizeOf = require('image-size')
 const sharp = require('sharp')
 const icongen = require('icon-gen')
+const { v4: uuidv4 } = require('uuid')
+
+// cant set it yet thx too some env stuff
+let pkgFetch
+let pkgExec
 
 const RH_URL = 'http://www.angusj.com/resourcehacker/resource_hacker.zip'
 
@@ -35,7 +40,9 @@ class PKGMetadata {
 
     } = opts
 
-    this.tmpPath = path.join(__dirname, '.tmp')
+    this.uiid = uuidv4()
+
+    this.tmpPath = path.join(__dirname, '.tmp', this.uiid)
     this.binTMPPath = path.join(this.tmpPath, 'bin')
     this.cachePath = path.join(__dirname, '.cache')
     this.resPath = path.join(__dirname, 'res')
@@ -68,8 +75,7 @@ class PKGMetadata {
     ])
 
     // scuffed hack bc env gets used too early otherwise
-    this.pkgFetch = require('pkg-fetch')
-    this.pkgExec = require('pkg').exec
+    pkgFetch = require('pkg-fetch')
 
     this.parseTargets()
 
@@ -119,7 +125,7 @@ class PKGMetadata {
     console.log(this.targets)
 
     for (const target of this.targets) {
-      target.fullPath = await this.pkgFetch.need(target.target)
+      target.fullPath = await pkgFetch.need(target.target)
       target.fileName = path.basename(target.fullPath)
     }
   }
@@ -185,6 +191,8 @@ class PKGMetadata {
   async editMetaData () {
     console.log('Edit metadata...')
 
+    this.changePKGEnv(this.binTMPPath)
+
     if (this.icon) {
       console.log('Prepare icon...')
       const iconType = this.icon.split('.').pop()
@@ -201,22 +209,23 @@ class PKGMetadata {
       }
 
       console.log('Edit base binary of target: ' + target.name)
+      const pkgTMPPath = path.join(this.binTMPPath, 'v2.6')
+      fs.ensureDir(pkgTMPPath)
 
-      target.tmpPath = path.join(this.binTMPPath, target.fileName)
-
+      target.tmpPath = path.join(pkgTMPPath, target.fileName)
       await fs.copyFile(target.fullPath, target.tmpPath)
 
       await this.execRHInternal({
-        open: target.fullPath,
-        save: target.fullPath,
+        open: target.tmpPath,
+        save: target.tmpPath,
         action: 'addoverwrite',
         resource: this.resFilePath
       })
 
       if (this.icon) {
         await this.execRHInternal({
-          open: target.fullPath,
-          save: target.fullPath,
+          open: target.tmpPath,
+          save: target.tmpPath,
           action: 'addoverwrite',
           resource: this.finalIcon,
           mask: 'ICONGROUP,1,'
@@ -316,15 +325,11 @@ class PKGMetadata {
       ]
     }
 
-    await this.pkgExec(args)
+    await pkgExec(args)
   }
 
   async cleanup () {
     console.log('cleanup')
-
-    for (const target of this.targets.filter(t => t.binTMPPath)) {
-      await fs.copyFile(target.binTMPPath, target.fullPath)
-    }
 
     if (!this.keepTMP) {
       await fs.remove(this.tmpPath)
@@ -370,7 +375,7 @@ class PKGMetadata {
       knownPlatforms,
       toFancyArch,
       toFancyPlatform
-    } = this.pkgFetch.system
+    } = pkgFetch.system
     const hostNodeRange = 'node' + process.version.match(/^v(\d+)/)[1]
 
     const targets = []
@@ -407,6 +412,13 @@ class PKGMetadata {
       })
     }
     this.targets = targets
+  }
+
+  changePKGEnv (p) {
+    decache('pkg-fetch')
+    process.env.PKG_CACHE_PATH = p
+
+    pkgExec = require('pkg').exec
   }
 
   static async execRH (path, opts) {

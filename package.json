@@ -1,17 +1,20 @@
 {
   "name": "pkg-metadata",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "desc",
   "main": "index.js",
   "scripts": {
     "test": "ava"
   },
-  "os" : [ "win32" ],
-  "engines" : { 
-    "node" : ">=10.0.0" 
+  "os": [
+    "win32"
+  ],
+  "engines": {
+    "node": ">=10.0.0"
   },
   "dependencies": {
     "commander": "^6.1.0",
+    "decache": "^4.6.0",
     "diff": "^4.0.2",
     "fs-extra": "9.0.1",
     "icon-gen": "^2.0.0",
@@ -21,7 +24,8 @@
     "pkg-fetch": "^2.6.9",
     "pkginfo": "0.4.1",
     "sharp": "^0.26.0",
-    "unzipper": "^0.10.11"
+    "unzipper": "^0.10.11",
+    "uuid": "^8.3.2"
   },
   "devDependencies": {
     "ava": "^3.12.1",
